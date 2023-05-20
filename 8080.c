@@ -279,7 +279,7 @@ int Emulate(int mode) {
 			  _pc+=2;
 				break;
 
-			case 2:   // LD (BC),a
+			case 2:   // STAX B
 			  PutValue(_B,_a);
 				break;
 
@@ -323,7 +323,7 @@ aggDec:
       	_f.AuxCarry= (res3.b.l & 0xf) == 0xf ? 1 : 0; // DEC x      1 if borrow from bit 4 else 0 
 				break;
 
-			case 6:   // LD B,n ecc
+			case 6:   // MVI B,n ecc
 			case 0xe:
 			case 0x16:
 			case 0x1e:
@@ -334,7 +334,7 @@ aggDec:
 			  _pc++;
 				break;
 
-			case 7:   // RLCA
+			case 7:   // RLC
 				_f.Carry=_a & 0x80 ? 1 : 0;
 				_a <<= 1;
 				_a |= _f.Carry;
@@ -343,17 +343,7 @@ aggRotate:
         _f.AuxCarry=0;
 				break;
                                          
-			case 8:   // EX AF,AF'
-        _f_PSW=_f.b;
-        
-			  res3.x=_PSW;
-				_PSW=regs2.r[3].x;
-				regs2.r[3].x=res3.x;
-
-        _f.b=_f_PSW;
-				break;
-
-			case 9:   // ADD HL,BC ecc
+			case 9:   // DAD H,B ecc
 			case 0x19:
 			case 0x29:
         res1.x=_H;
@@ -364,17 +354,17 @@ aggRotate:
         goto aggFlagWC;
         break;
 
-			case 0xa:   // LD A,(BC)
+			case 0xa:   // LDAX B
 			  _a=GetValue(_B);
 				break;
 
-      case 0xb:   // DEC BC ecc
+      case 0xb:   // DCX BC ecc
       case 0x1b:
       case 0x2b:
 				WORKING_REG16 --;
 				break;
 
-			case 0xf:   // RRCA
+			case 0xf:   // RRC
 				_f.Carry=_a & 1;
 				_a >>= 1;
 				if(_f.Carry)
@@ -382,18 +372,11 @@ aggRotate:
         goto aggRotate;
 				break;
 
-			case 0x10:   // DJNZ
-				_pc++;
-			  _b--;
-				if(_b)
-					_pc+=(signed char)Pipe2.b.l;
-				break;
-
-			case 0x12:    // LD (DE),A
+			case 0x12:    // STAX D
 			  PutValue(_D,_a);
 				break;
 
-      case 0x17:    // RLA
+      case 0x17:    // RAL
 				_f1=_f;
 				_f.Carry=_a & 0x80 ? 1 : 0;
 				_a <<= 1;
@@ -401,16 +384,11 @@ aggRotate:
         goto aggRotate;
 				break;
 
-      case 0x18:    // JR
-				_pc++;
-				_pc+=(signed char)Pipe2.b.l;
-				break;
-				
-			case 0x1a:    // LD A,(DE)
+			case 0x1a:    // LDAX D
 			  _a=GetValue(_D);
 				break;
 
-			case 0x1f:    // RRA
+			case 0x1f:    // RAR
 				_f1=_f;
 				_f.Carry=_a & 1;
 				_a >>= 1;
@@ -419,13 +397,7 @@ aggRotate:
         goto aggRotate;
 				break;
 
-			case 0x20:    // JR nz
-				_pc++;
-				if(!_f.Zero)
-					_pc+=(signed char)Pipe2.b.l;
-				break;
-
-			case 0x22:    // LD(nn),HL
+			case 0x22:    // SHLD nn
 			  PutIntValue(Pipe2.x,_H);
 			  _pc+=2;
 				break;
@@ -451,71 +423,53 @@ aggRotate:
         goto calcParity;
 				break;
 
-      case 0x28:    // JR z
-				_pc++;
-        if(_f.Zero)
-				  _pc+=(signed char)Pipe2.b.l;
-				break;
-				
-			case 0x2a:    // LD HL,(nn)
+			case 0x2a:    // LHLD (nn)
 			  _H=GetIntValue(Pipe2.x);
 			  _pc+=2;
 				break;
 
-  		case 0x2f:    // CPL
+  		case 0x2f:    // CMA
         _a=~_a;
         _f.AuxCarry=1;
 				break;
-        
-			case 0x30:    // JR nc
-				_pc++;
-				if(!_f.Carry)
-					_pc+=(signed char)Pipe2.b.l;
-				break;
 
-			case 0x31:    // LD SP,nn (v. anche HL ecc)
+			case 0x31:    // LXI SP,nn (v. anche H ecc)
 			  _sp=Pipe2.x;
 			  _pc+=2;
 				break;
 
-			case 0x32:    // LD (nn),A
+			case 0x32:    // STA (nn)
 			  PutValue(Pipe2.x,_a);
 			  _pc+=2;
 				break;
 
-			case 0x33:    // INC SP (v. anche INC BC ecc)
+			case 0x33:    // INX SP (v. anche INX B ecc)
 			  _sp++;
 				break;
 
-			case 0x34:    // INC (HL)
+			case 0x34:    // INR (H)
         res3.b.l=GetValue(_H)+1;
 			  PutValue(_H,res3.b.l);
         goto aggInc;
 				break;
 
-			case 0x35:    // DEC (HL)
+			case 0x35:    // DCR (H)
         res3.b.l=GetValue(_H)-1;
 			  PutValue(_H,res3.b.l);
         goto aggDec;
 				break;
 
-			case 0x36:    // LD (HL),n
+			case 0x36:    // MVI (H),n
 			  PutValue(_H,Pipe2.b.l);
 			  _pc++;
 				break;
               
-      case 0x37:    // SCF
+      case 0x37:    // STC
         _f.Carry=1;
         _f.AuxCarry=0;
         break;
                                    
-      case 0x38:    // JR c
-				_pc++;
-        if(_f.Carry)
-				  _pc+=(signed char)Pipe2.b.l;
-				break;
-				
-			case 0x39:    // ADD HL,SP
+			case 0x39:    // DAD SP
         res1.x=_H;
         res2.x=_sp;
 			  res3.d=(DWORD)res1.x+(DWORD)res2.x;
@@ -524,21 +478,21 @@ aggRotate:
         goto aggFlagWC;
 				break;
 
-			case 0x3a:    // LD A,(nn)
+			case 0x3a:    // LDA (nn)
 			  _a=GetValue(Pipe2.x);
 			  _pc+=2;
 				break;
 
-      case 0x3b:    // DEC SP (v. anche DEC BC ecc)
+      case 0x3b:    // DCX SP (v. anche DEC B ecc)
 			  _sp--;
 				break;
 
-      case 0x3f:    // CCF
+      case 0x3f:    // CMC
         _f.AuxCarry=_f.Carry;
         _f.Carry=!_f.Carry;
         break;
                                    
-			case 0x40:    // LD r,r
+			case 0x40:    // MOV r,r
 			case 0x41:
 			case 0x42:
 			case 0x43:
@@ -590,7 +544,7 @@ aggRotate:
 				WORKING_REG=WORKING_REG2;
 				break;
 
-			case 0x46:    // LD r,(HL)
+			case 0x46:    // MOV r,(HL)
 			case 0x4e:
 			case 0x56:
 			case 0x5e:
@@ -610,11 +564,11 @@ aggRotate:
 				PutValue(_H,/* regs1.b[((Pipe1 & 7) +1) & 7]*/ WORKING_REG2);
 				break;
         
-			case 0x76:    // HALT
+			case 0x76:    // HLT
 			  DoHalt=1;
 				break;
 
-			case 0x80:    // ADD A,r
+			case 0x80:    // ADD r
 			case 0x81:
 			case 0x82:
 			case 0x83:
@@ -668,12 +622,12 @@ aggFlagBC:    // http://www.z80.info/z80sflag.htm
         _f.Sign=res3.b.l & 0x80 ? 1 : 0;
 				break;
 
-			case 0x86:    // ADD A,(HL)
+			case 0x86:    // ADD (HL)
         res2.b.l=GetValue(_H);
         goto aggSomma;
 				break;
 
-			case 0x88:    // ADC A,r
+			case 0x88:    // ADC r
 			case 0x89:
 			case 0x8a:
 			case 0x8b:
@@ -704,7 +658,7 @@ aggSommaC:
         goto aggSommaC;
 				break;
 
-			case 0x90:    // SUB A,r
+			case 0x90:    // SUB r
 			case 0x91:
 			case 0x92:
 			case 0x93:
@@ -741,12 +695,12 @@ aggSottr:
   			goto aggFlagBC;
 				break;
 
-			case 0x96:    // SUB A,(HL)
+			case 0x96:    // SUB (HL)
         res2.b.l=GetValue(_H);
 				goto aggSottr;
 				break;
 
-			case 0x98:    // SBC A,r
+			case 0x98:    // SBB r
 			case 0x99:
 			case 0x9a:
 			case 0x9b:
@@ -774,12 +728,12 @@ aggSottrC:
         goto aggFlagB;
 				break;
 
-			case 0x9e:    // SBC A,(HL)
+			case 0x9e:    // SBB (HL)
         res2.b.l=GetValue(_H);
 				goto aggSottrC;
 				break;
 
-			case 0xa0:    // AND A,r
+			case 0xa0:    // ANA r
 			case 0xa1:
 			case 0xa2:
 			case 0xa3:
@@ -811,13 +765,13 @@ calcParity:
           }
 				break;
 
-			case 0xa6:    // AND A,(HL)
+			case 0xa6:    // ANA (HL)
 				_a &= GetValue(_H);
         _f.AuxCarry=1;
         goto aggAnd;
 				break;
 
-			case 0xa8:    // XOR A,r
+			case 0xa8:    // XRA r
 			case 0xa9:
 			case 0xaa:
 			case 0xab:
@@ -829,13 +783,13 @@ calcParity:
         goto aggAnd;
 				break;
 
-			case 0xae:    // XOR A,(HL)
+			case 0xae:    // XRA (HL)
 				_a ^= GetValue(_H);
         _f.AuxCarry=0;
         goto aggAnd;
 				break;
 
-			case 0xb0:    // OR A,r
+			case 0xb0:    // ORA r
 			case 0xb1:
 			case 0xb2:
 			case 0xb3:
@@ -847,13 +801,13 @@ calcParity:
         goto aggAnd;
 				break;
 
-			case 0xb6:    // OR A,(HL)
+			case 0xb6:    // ORA (HL)
 				_a |= GetValue(_H);
         _f.AuxCarry=0;
         goto aggAnd;
 				break;
 
-			case 0xb8:    // CP A,r
+			case 0xb8:    // CMP r
 			case 0xb9:
 			case 0xba:
 			case 0xbb:
@@ -864,12 +818,12 @@ calcParity:
 				goto compare;
 				break;
 
-			case 0xbe:    // CP A,(HL)
+			case 0xbe:    // CMP (HL)
 				res2.b.l=GetValue(_H);
   			goto compare;
 				break;
 
-			case 0xc0:    // RET NZ
+			case 0xc0:    // RNZ
 			  if(!_f.Zero)
 			    goto Return;
 				break;
@@ -886,19 +840,20 @@ calcParity:
 				_a=GetValue(_sp++);
 				break;
 
-			case 0xc2:    // JP nz
+			case 0xc2:    // JNZ
 			  if(!_f.Zero)
 			    goto Jump;
 			  else
 			    _pc+=2;
 				break;
 
-			case 0xc3:    // JP
+			case 0xc3:    // JMP
+			case 0xcb:
 Jump:
 				_pc=Pipe2.x;
 				break;
 
-			case 0xc4:    // CALL nz
+			case 0xc4:    // CNZ
 			  if(!_f.Zero)
 			    goto Call;
 			  else
@@ -917,7 +872,7 @@ Jump:
 				PutValue(--_sp,_f_PSW);
 				break;
 
-			case 0xc6:    // ADD A,n
+			case 0xc6:    // ADI n
 			  res2.b.l=Pipe2.b.l;
 			  _pc++;
         goto aggSomma;
@@ -938,29 +893,26 @@ RST:
 				_pc=i;
 				break;
 				
-			case 0xc8:    // RET z
+			case 0xc8:    // RZ
 			  if(_f.Zero)
 			    goto Return;
 				break;
 
 			case 0xc9:    // RET
+			case 0xd9:    // 
 Return:
         _pc=GetValue(_sp++);
         _pc |= ((SWORD)GetValue(_sp++)) << 8;
 				break;
 
-			case 0xca:    // JP z
+			case 0xca:    // JZ
 			  if(_f.Zero)
 			    goto Jump;
 			  else
 			    _pc+=2;
 				break;
 
-
-			case 0xcb:
-				break;
-
-			case 0xcc:    // CALL z
+			case 0xcc:    // CZ
 			  if(_f.Zero)
 			    goto Call;
 			  else
@@ -971,25 +923,24 @@ Return:
 			case 0xdd:
 			case 0xed:      // 
 			case 0xfd:
-
 Call:
 				i=Pipe2.x;
 		    _pc+=2;
 				goto RST;
 				break;
 
-			case 0xce:    // ADC A,n
+			case 0xce:    // ACI n
 			  res2.b.l=Pipe2.b.l;
 			  _pc++;
         goto aggSommaC;
 				break;
 
-			case 0xd0:    // RET nc
+			case 0xd0:    // RNC
 			  if(!_f.Carry)
 			    goto Return;
 				break;
 
-			case 0xd2:    // JP nc
+			case 0xd2:    // JNC
 			  if(!_f.Carry)
 			    goto Jump;
 			  else
@@ -1001,36 +952,25 @@ Call:
 				_pc++;
 				break;
 
-			case 0xd4:    // CALL nc
+			case 0xd4:    // CNC
 			  if(!_f.Carry)
 			    goto Call;
 			  else
 			    _pc+=2;
 				break;
 
-			case 0xd6:    // SUB n
+			case 0xd6:    // SUI n
   		  res2.b.l=Pipe2.b.l;
 			  _pc++;
         goto aggSottr;
 				break;
 
-			case 0xd8:    // RET c
+			case 0xd8:    // RC
 			  if(_f.Carry)
 			    goto Return;
 				break;
 
-			case 0xd9:    // EXX
-        {
-        BYTE n;
-        for(n=0; n<3; n++) {
-          res3.x=regs2.r[n].x;
-          regs2.r[n].x=regs1.r[n].x;
-          regs1.r[n].x=res3.x;
-          }
-        }
-				break;
-
-			case 0xda:    // JP c
+			case 0xda:    // JC
 			  if(_f.Carry)
 			    goto Jump;
 			  else
@@ -1042,93 +982,93 @@ Call:
 				_a=InValue(MAKEWORD(Pipe2.b.l,_a));
 				break;
 
-			case 0xdc:    // CALL c
+			case 0xdc:    // CC
 			  if(_f.Carry)
 			    goto Call;
 			  else
 			    _pc+=2;
 				break;
 
-			case 0xde:    // SBC A,n
+			case 0xde:    // SBI n
 				_pc++;
 				res2.b.l=Pipe2.b.l;
         goto aggSottrC;
 				break;
 
-			case 0xe0:    // RET po
+			case 0xe0:    // RPO
 			  if(!_f.Parity)
 			    goto Return;
 				break;
 
-			case 0xe2:    // JP po
+			case 0xe2:    // JPO
 			  if(!_f.Parity)
 			    goto Jump;
 			  else
 			    _pc+=2;
 				break;
 
-			case 0xe3:    // EX (SP),HL
+			case 0xe3:    // XTHL
 				res3.x=GetIntValue(_sp);
 				PutIntValue(_sp,_H);
 				_H=res3.x;
 				break;
 
-			case 0xe4:    // CALL po
+			case 0xe4:    // CPO
 			  if(!_f.Parity)
 			    goto Call;
 			  else
 			    _pc+=2;
 				break;
 
-			case 0xe6:    // AND A,n
+			case 0xe6:    // ANI n
 				_a &= Pipe2.b.l;
         _f.AuxCarry=1;
 				_pc++;
         goto aggAnd;
 				break;
 
-			case 0xe8:    // RET pe
+			case 0xe8:    // RPE
 			  if(_f.Parity)
 			    goto Return;
 				break;
 
-			case 0xe9:    // JP (HL)
+			case 0xe9:    // PCHL
 			  _pc=_H;
 				break;
 
-			case 0xea:    // JP pe
+			case 0xea:    // JPE
 			  if(_f.Parity)
 			    goto Jump;
 			  else
 			    _pc+=2;
 				break;
 
-			case 0xeb:    // EX DE,HL
+			case 0xeb:    // XCHG
 				res3.x=_D;
 				_D=_H;
 				_H=res3.x;
 				break;
 
-			case 0xec:    // CALL pe
+			case 0xec:    // CPE
 			  if(_f.Parity)
 			    goto Call;
 			  else
 			    _pc+=2;
 				break;
 
-			case 0xee:    // XOR A,n
+			case 0xee:    // XRI n
 				_a ^= Pipe2.b.l;
         _f.AuxCarry=0;
 				_pc++;
         goto aggAnd;
 				break;
 
-			case 0xf0:    // RET p
+			case 0xf0:    // RP
 			  if(!_f.Sign)
 			    goto Return;
 				break;
 
-			case 0xf2:    // JP p
+			case 0xf2:    // JP
 			  if(!_f.Sign)
 			    goto Jump;
 			  else
@@ -1139,30 +1079,30 @@ Call:
 			  IRQ_Enable1=IRQ_Enable2=0;
 				break;
 
-			case 0xf4:    // CALL p
+			case 0xf4:    // CP
 			  if(!_f.Sign)
 			    goto Call;
 			  else
 			    _pc+=2;
 				break;
 
-			case 0xf6:    // OR A,n
+			case 0xf6:    // ORI n
 				_a |= Pipe2.b.l;
         _f.AuxCarry=0;
 				_pc++;
         goto aggAnd;
 				break;
 
-			case 0xf8:    // RET m
+			case 0xf8:    // RM
 			  if(_f.Sign)
 			    goto Return;
 				break;
 
-			case 0xf9:    // LD SP,HL
+			case 0xf9:    // SPHL
 			  _sp=_H;
 				break;
 
-			case 0xfa:    // JP m
+			case 0xfa:    // JM
 			  if(_f.Sign)
 			    goto Jump;
 			  else
@@ -1173,14 +1113,14 @@ Call:
 			  IRQ_Enable1=IRQ_Enable2=1;
 				break;
 
-			case 0xfc:    // CALL m
+			case 0xfc:    // CM
 			  if(_f.Sign)
 			    goto Call;
 			  else
 			    _pc+=2;
 				break;
 
-			case 0xfe:    // CP n
+			case 0xfe:    // CPI n
 				res2.b.l=Pipe2.b.l;
 				_pc++;
         
