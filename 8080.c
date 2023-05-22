@@ -129,7 +129,7 @@ int Emulate(int mode) {
     
 	SWORD _pc=0;
 	SWORD _sp=0;
-	BYTE _i,_r;
+	BYTE _i;
 	BYTE IRQ_Mode=0;
 	BYTE IRQ_Enable1=0,IRQ_Enable2=0;
   union Z_REGISTERS regs1,regs2;
@@ -187,7 +187,7 @@ int Emulate(int mode) {
 			}*/
 		if(DoReset) {
 			_pc=0;
-      _i=_r=0;
+      _i=0;
 			IRQ_Enable1=0;IRQ_Enable2=0;
      	IRQ_Mode=0;
 			DoReset=0;DoHalt=0;//DoWait=0;
@@ -226,8 +226,6 @@ int Emulate(int mode) {
 				}
 			}
 
-		// buttare fuori il valore di _r per il refresh... :)
-    _r++;
   
 		if(DoHalt) {
       //mettere ritardino per analogia con le istruzioni?
